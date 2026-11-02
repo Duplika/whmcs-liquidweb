@@ -1,7 +1,7 @@
 <?php
 /**
- * Liquid Web for WHMCS — 0.2.0-beta.1
- * Server information and optional native firewall suspension.
+ * Liquid Web for WHMCS — 0.2.0-beta.2
+ * Server information and native firewall suspension.
  *
  * @author Duplika <https://duplika.com/>
  * @copyright 2026 Duplika
@@ -22,10 +22,7 @@ function liquidweb_MetaData(): array
 
 function liquidweb_ConfigOptions(): array
 {
-    return ['Firewall suspension' => [
-        'Type' => 'yesno',
-        'Description' => 'Enable native Suspend/Unsuspend using the Cloud Firewall. Monitoring must be paused manually.',
-    ]];
+    return [];
 }
 
 function liquidweb_TestConnection(array $params): array
@@ -140,7 +137,7 @@ function liquidweb_ClientArea(array $params): array
         $uid = liquidweb_assetId($params);
         $username = (string) ($params['serverusername'] ?? '');
         $password = (string) ($params['serverpassword'] ?? '');
-        $key = 'en020b1-' . hash('sha256', json_encode([
+        $key = 'en020b2-' . hash('sha256', json_encode([
             (int) $params['userid'], (int) $params['serviceid'], (int) $params['serverid'],
             $uid, $username, hash('sha256', $password),
         ]));
@@ -184,7 +181,7 @@ function liquidweb_ClientArea(array $params): array
     // Read-only request through WHMCS's existing authorized service page.
     // Fetch graphs only when requested, so normal visits keep their original cost.
     if ($vars['lwError'] === '' && ($_GET['lw_network'] ?? '') === '1') {
-        $networkKey = 'en020b1-' . $key;
+        $networkKey = 'en020b2-' . $key;
         $cachedNetwork = $_SESSION['liquidweb_network'][$networkKey] ?? null;
         if (is_array($cachedNetwork) && ($cachedNetwork['expires'] ?? 0) > time()) {
             $vars['lwNetwork'] = $cachedNetwork['network'];
@@ -220,7 +217,7 @@ function liquidweb_AdminServicesTabFields(array $params): array
 {
     try {
         $uid = liquidweb_assetId($params);
-        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Module 0.2.0-beta.1 · By Duplika (duplika.com)'];
+        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Module 0.2.0-beta.2 · By Duplika (duplika.com)'];
     } catch (\Throwable $e) {
         return ['Liquid Web' => htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')];
     }
@@ -239,9 +236,6 @@ function liquidweb_UnsuspendAccount(array $params): string
 
 function liquidweb_firewallCommand(array $params, bool $suspend): string
 {
-    if (!in_array($params['configoption1'] ?? '', ['on', '1', 1, true], true)) {
-        return 'Enable Firewall suspension in this product Module Settings first.';
-    }
     try {
         foreach (['serviceid', 'userid', 'pid', 'serverid'] as $key) {
             if ((int) ($params[$key] ?? 0) < 1) {

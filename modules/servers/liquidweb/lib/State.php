@@ -38,6 +38,21 @@ final class State
 
     public static function command(array $params, string $uid, bool $suspend, Api $api): void
     {
+        self::execute($params, $uid, $suspend, $api, null);
+    }
+
+    /** One-time operator import of a KNOWN previous configuration; never infer it. */
+    public static function adopt(array $params, string $uid, array $original, Api $api): void
+    {
+        $original = Firewall::configuration(['system' => 'liquidweb'] + $original);
+        if (!in_array($original['type'], ['basic', 'none'], true)) {
+            throw new \RuntimeException('Only a known Basic or Disabled configuration can be imported.');
+        }
+        self::execute($params, $uid, true, $api, $original);
+    }
+
+    private static function execute(array $params, string $uid, bool $suspend, Api $api, ?array $original): void
+    {
         // MySQL advisory locks span the snapshot commit and remote requests.
         // Hold both the service and remote-asset lock to serialize suspend/restore.
         $binding = self::binding($params, $uid);
@@ -63,6 +78,17 @@ final class State
             if ($other) { throw new \RuntimeException('This asset has a firewall snapshot attached to another service.'); }
             $record = $row ? json_decode($row->snapshot, true, 32, JSON_THROW_ON_ERROR) : null;
             if ($row && !is_array($record)) { throw new \RuntimeException('Invalid firewall snapshot.'); }
+            if ($original !== null) {
+                if ($row) { throw new \RuntimeException('A snapshot already exists. It will not be overwritten.'); }
+                $current = Firewall::configuration($api->call('network/firewall/details', ['uniq_id' => $uid]));
+                if ($current !== ['type' => 'advanced', 'rules' => []]) {
+                    throw new \RuntimeException('Import requires a currently blocked Advanced firewall with no rules.');
+                }
+                Capsule::table(self::TABLE)->insert(['service_id' => $binding['service'],
+                    'remote_key' => $remote, 'binding' => $encoded,
+                    'snapshot' => json_encode(['phase' => 'blocked', 'original' => $original], JSON_THROW_ON_ERROR)]);
+                return;
+            }
             Firewall::run($suspend, $uid, $record,
                 fn() => $api->call('network/firewall/details', ['uniq_id' => $uid]),
                 fn($payload) => $api->updateFirewall($payload),

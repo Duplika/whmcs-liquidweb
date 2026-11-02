@@ -2,7 +2,7 @@
 
 A lightweight, server module by [Duplika](https://duplika.com/) for displaying Liquid Web server information in the WHMCS client area.
 
-**0.2.0-beta.1 · English · MIT License**
+**0.2.0-beta.2 · English · MIT License**
 
 For providers who create and manage servers manually. This independent project is not an official Liquid Web or WHMCS integration.
 
@@ -12,16 +12,16 @@ For providers who create and manage servers manually. This independent project i
 - Operating system, city, country, and region when returned by the API.
 - Incoming/outgoing network history, loaded on demand with **View network traffic**.
 - Responsive SVG chart generated locally, without extra JavaScript libraries.
-- Optional native WHMCS Suspend/Unsuspend buttons and billing automation through the Cloud Firewall.
-- One private snapshot table, created only on the first enabled firewall command. No extra cron, JavaScript libraries or runtime package dependencies.
+- Native WHMCS Suspend/Unsuspend buttons and billing automation through the Cloud Firewall.
+- One private snapshot table, created only on the first firewall command or explicit import. No extra cron, JavaScript libraries or runtime package dependencies.
 
 Hostname and IP remain in the standard WHMCS service page rather than being repeated.
 
 ## Simple scope
 
-**Provisioning and general server administration remain manual.** Optional suspension blocks network access with Advanced mode and an empty rule list; reactivation restores the saved Basic or Disabled configuration. It does not power off the server, stop its processes or cancel provider billing. No provisioning, termination, reboot, resizing, password changes, console access, or backups.
+**Provisioning and general server administration remain manual.** Suspension blocks network access with Advanced mode and an empty rule list; reactivation restores the saved Basic or Disabled configuration. It does not power off the server, stop its processes or cancel provider billing. No provisioning, termination, reboot, resizing, password changes, console access, or backups.
 
-Firewall suspension is disabled by default per product. Existing installations keep their information-only behavior until enabled. Never offer these commands to clients through custom buttons.
+Native firewall suspension is available automatically to services using this product module, an assigned Liquid Web connection and a valid admin-only LiquidWeb UID. There is no per-product enable checkbox. Installing this version enables lifecycle capabilities for all such services; WHMCS global automation settings and service overrides decide when automatic commands run. Never offer these commands to clients through custom buttons.
 
 CPU utilization, load average, RAM/disk utilization, allocated-capacity summaries, service-health indicators, and panel access are not implemented. Power status does not indicate application availability. A catalog of monitorable services is not a health check.
 
@@ -57,21 +57,35 @@ One API connection can serve multiple services in the same Liquid Web account; e
 
 **Do not install alongside the old official LiquidWeb module:** PHP function names are case-insensitive and can collide.
 
-## Optional suspension and payment reactivation
+## Native suspension and payment reactivation
 
 1. Back up WHMCS and update the complete module directory. Save a Liquid Web product's Module Settings again so WHMCS discovers the new module `hooks.php` file; clear the WHMCS template cache if necessary.
-2. On each chosen product, enable **Firewall suspension** in Module Settings and save. Keep **Do not automatically setup this product** selected: server creation remains manual.
+2. Keep **Do not automatically setup this product** selected: server creation remains manual. No extra module option is required for suspension. A service must use the Liquid Web product module, its assigned Liquid Web server connection and a valid admin-only UID. Selecting a connection alone does not replace the product module assignment.
 3. In the service administrator page, use WHMCS's native **Module Commands → Suspend / Unsuspend**. No extra dashboard or custom buttons are required. Use the native suspension action, rather than just editing the service status.
 4. In **System Settings → Automation Settings**, enable **Enable Suspension** and **Enable Unsuspension**, and review **Suspend Days**. The existing WHMCS system cron handles overdue suspension; WHMCS handles reactivation after qualifying invoice payment. These are global settings: review other products before changing them. This module does not change them for you.
 5. WHMCS identifies billing suspensions by the reason **Overdue on Payment**. A manual custom reason (for example, abuse or identity review) must not trigger automatic reactivation after payment. Use the native billing reason for manual non-payment suspensions; verify the stored reason after the command. Follow WHMCS's normal billing/date rules; no payment hooks or parallel automation are added.
 
 The module saves the original firewall before sending an update, sets `type=advanced` with `rules=[]`, then reads the firewall back before reporting success. On Unsuspend, it restores the exact saved Basic service allow-list or Disabled mode and verifies it again. It never defaults to Disabled when a snapshot is missing.
 
-For the first release of this feature, pre-existing Advanced configurations (with or without rules), saved presets and other firewall systems require manual handling. A VPS already blocked manually has no module snapshot: it must also be restored manually. Do not re-run Suspend on that VPS expecting the module to recover its previous settings. After a manual restoration and WHMCS status correction, future suspension cycles can be managed by the module.
+For the first release of this feature, pre-existing Advanced configurations (with or without rules), saved presets and other firewall systems require manual handling. A VPS already blocked manually has no module snapshot. If its previous Basic/Disabled configuration is known, use the one-time CLI import below; otherwise restore it manually from verified records. Do not guess a default or re-run Suspend expecting to recover unknown settings.
 
-A private `mod_liquidweb_firewall` table stores one record per service: the original configuration, operation phase and assignment identifiers. The database account needs CREATE permission for the first command and normal SELECT/INSERT/UPDATE access thereafter. MySQL named locks prevent simultaneous module operations on the same service/asset. Snapshots are bound to the service, owner, product, connection, API username and UID; changing that assignment requires manual review. Do not map the same asset to multiple WHMCS services.
+A private `mod_liquidweb_firewall` table stores one record per service: the original configuration, operation phase and assignment identifiers. The database account needs CREATE permission for the first command/import and normal SELECT/INSERT/UPDATE access thereafter. MySQL named locks prevent simultaneous module operations on the same service/asset. Snapshots are bound to the service, owner, product, connection, API username and UID; changing that assignment requires manual review. Do not map the same asset to multiple WHMCS services.
 
 Repeated commands preserve the original snapshot. A timeout or delayed provider update returns an error and retains the snapshot: retry the same native command to reconcile the actual state. If someone changes the firewall outside the module, restoration stops for review rather than overwriting those changes. Review WHMCS's Module Queue and Activity Log for failed operations. Do not delete snapshots to bypass an error.
+
+### Import a manually suspended server once
+
+Only use this when the previous configuration is independently known. The optional [tools/import-firewall.php](tools/import-firewall.php) CLI tool takes the WHMCS root, asset UID and known original JSON. For example:
+
+```bash
+php /path/to/import-firewall.php /path/to/whmcs ABC123 '{"type":"none"}'
+# For a known Basic configuration, supply its exact original allow-list:
+php /path/to/import-firewall.php /path/to/whmcs ABC123 '{"type":"basic","allow":["http","https"]}'
+```
+
+These are alternative examples, not commands to run consecutively. Download the tool from the same release tag as the installed module and keep it outside the web root. It uses the saved WHMCS credentials, requires exactly one mapped Active/Suspended service, verifies that the remote firewall is currently Advanced with no rules, and imports only the supplied known original configuration. It refuses to overwrite any existing snapshot. The tool makes no firewall changes and does not change WHMCS status or suspension reason. Remove it after use.
+
+Then reconcile the service using the native Suspend command if necessary. For non-payment, verify WHMCS stores **Overdue on Payment** as the reason so payment reactivation applies. The next native Unsuspend can restore the imported configuration. No migration script runs automatically, and no client/asset details are embedded in the release.
 
 ### Client suspension notice
 
@@ -85,7 +99,7 @@ Firewall changes do not pause Liquid Web monitoring. Current pilot discovery ret
 
 ### Pilot checklist
 
-Use a controlled service before enabling unattended billing automation:
+Use a controlled service before relying on unattended billing automation:
 
 - Confirm Basic/Disabled restore settings and save a separate copy in your normal administration records.
 - Pause Liquid Web monitoring manually, then use native Suspend. Confirm WHMCS becomes Suspended, the provider firewall is Advanced with no rules, external access is blocked, and the notice appears in the client area.
@@ -104,7 +118,7 @@ The direct API block operation was verified on one pilot VPS. The new native WHM
 | v3 | `server/power/status` | Cached power status |
 | v2 | `monitoring/bandwidth/graph` | Daily network history |
 | v2 | `network/firewall/details` | Read and verify firewall configuration during module commands |
-| v2 | `network/firewall/update` | Optional suspend/restore operation |
+| v2 | `network/firewall/update` | Native suspend/restore operation |
 
 The observed network response contains JSON samples with Unix timestamps, incoming/outgoing points and the unit `bytes`. The chart shows **reported bytes per sample**, scaled to KiB/MiB/GiB. It does not infer bytes/second, daily totals, or billable usage. Times are UTC; missing data is not drawn as zero.
 
@@ -112,7 +126,7 @@ In pilot API discovery on October 30, 2026, load graph/statistics methods were l
 
 ### Feedback for Liquid Web
 
-We would welcome documented v3 endpoints for SS.VPS capacity, load/RAM time series and service health, plus a v3 replacement for network history. Clear sample semantics, units, timestamps and retention would let integrations display these metrics consistently. The module uses v2 for network history and optional firewall operations; v3 for basic server information.
+We would welcome documented v3 endpoints for SS.VPS capacity, load/RAM time series and service health, plus a v3 replacement for network history. Clear sample semantics, units, timestamps and retention would let integrations display these metrics consistently. The module uses v2 for network history and firewall operations; v3 for basic server information.
 
 ## Performance and security
 
@@ -142,7 +156,7 @@ GitHub Actions checks PHP syntax and runs offline tests before publishing the in
 
 Report issues with the module, WHMCS and PHP versions, theme, server type and error shown. Never include API tokens, passwords, full account responses or customer-identifying details.
 
-The install ZIP contains only the module (including its hooks and libraries), README and LICENSE. Development tests/workflows live in the repository but are excluded from the install ZIP. Diagnostic tools and customer-specific data are not published. No copy of the old Liquid Web plugin is bundled.
+The install ZIP contains only the module (including its hooks and libraries), README and LICENSE. Development tests/workflows live in the repository but are excluded from the install ZIP. The optional generic CLI import tool is available only in the repository. Customer-specific data is not published. No copy of the old Liquid Web plugin is bundled.
 
 ## License and credits
 

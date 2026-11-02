@@ -27,6 +27,8 @@ check(liquidweb_displayValue('status', 'future-status') === 'future-status', 'Pr
 foreach (['CreateAccount', 'TerminateAccount', 'ChangePackage', 'ChangePassword', 'Renew'] as $action) {
     check(!function_exists('liquidweb_' . $action), 'Unexpected lifecycle handler');
 }
+check(liquidweb_ConfigOptions() === [], 'Native suspension must not require a per-product enable flag');
+check(!str_contains(liquidweb_SuspendAccount([]), 'Enable Firewall suspension'), 'No opt-in gate');
 check(liquidweb_MetaData()['RequiresServer'] === true, 'A server connection is required');
 $moduleSource = file_get_contents(__DIR__ . '/../modules/servers/liquidweb/liquidweb.php');
 check(strpos($moduleSource, '&lw_network=1#') === false, 'Network links must not change the theme active-tab fragment');
