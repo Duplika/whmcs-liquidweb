@@ -22,9 +22,10 @@ jobs:
           php --version
           find modules tests -name '*.php' -print0 | xargs -0 -n1 php -l
           php tests/smoke.php
+          php tests/firewall.php
 
   release:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'Release v0.1.7-beta.1'
+    if: github.event_name == 'push' && github.event.head_commit.message == 'Release v0.2.0-beta.1'
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -36,34 +37,32 @@ jobs:
           persist-credentials: false
       - name: Build minimal installation package
         run: |
-          zip liquidweb-whmcs-0.1.7-beta.1.zip README.md LICENSE \
-            modules/servers/liquidweb/liquidweb.php \
-            modules/servers/liquidweb/clientarea.tpl \
-            modules/servers/liquidweb/lib/Api.php \
-            modules/servers/liquidweb/lib/Network.php
-          test "$(unzip -Z1 liquidweb-whmcs-0.1.7-beta.1.zip | wc -l)" -eq 6
-          sha256sum liquidweb-whmcs-0.1.7-beta.1.zip > SHA256SUMS.txt
+          zip -r liquidweb-whmcs-0.2.0-beta.1.zip README.md LICENSE modules/servers/liquidweb
+          test "$(unzip -Z1 liquidweb-whmcs-0.2.0-beta.1.zip | grep -v '/$' | wc -l)" -eq 10
+          sha256sum liquidweb-whmcs-0.2.0-beta.1.zip > SHA256SUMS.txt
           cat > release-notes.md <<'NOTES'
-          Initial public beta by Duplika, under the MIT License.
+          Native firewall suspension beta by Duplika, under the MIT License.
 
-          - Read-only server status, operating system and location when available.
-          - Network history loaded on demand, using a local SVG chart.
-          - v3 for basic details; v2 only for network history.
-          - English interface and installation instructions.
+          - Native WHMCS Suspend/Unsuspend commands, with per-product opt-in.
+          - Uses WHMCS billing automation for overdue suspension and payment reactivation.
+          - Durable original Basic/Disabled firewall snapshot, verified updates and retry handling.
+          - Suspended-service notice with an owner-scoped overdue invoice link, without provider API calls.
 
-          All provisioning and administration remain manual. No backups, CPU/RAM utilization, service health or server controls are included.
+          Update the complete module directory and save Module Settings so WHMCS discovers hooks.php. Enable Firewall suspension for the selected products, then review WHMCS Automation Settings. Server provisioning stays manual. Monitoring must still be paused/restored manually in Liquid Web.
 
-          Download liquidweb-whmcs-0.1.7-beta.1.zip below and follow README.md. The install package contains only six files; development tests and workflows are excluded. SHA256SUMS.txt provides its checksum.
+          Important: existing manually blocked servers have no snapshot and require manual restoration. Pre-existing Advanced firewalls/presets are not adopted. Never delete pending restore snapshots.
 
-          PHP syntax and offline tests pass before publication. Live WHMCS/API compatibility still requires testing; see the README for pilot observations and API limitations.
+          Download liquidweb-whmcs-0.2.0-beta.1.zip and read the installation, automation and pilot sections of README.md. The install ZIP includes only the module, README and LICENSE; SHA256SUMS.txt provides its checksum.
+
+          PHP syntax and offline tests pass before publication. Native WHMCS, MySQL and payment integration require a controlled live pilot before unattended use.
           NOTES
       - name: Publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create v0.1.7-beta.1 \
+          gh release create v0.2.0-beta.1 \
             --target "$GITHUB_SHA" --prerelease \
-            --title 'v0.1.7-beta.1 — Initial public beta' \
+            --title 'v0.2.0-beta.1 — Native firewall suspension' \
             --notes-file release-notes.md \
-            liquidweb-whmcs-0.1.7-beta.1.zip SHA256SUMS.txt
+            liquidweb-whmcs-0.2.0-beta.1.zip SHA256SUMS.txt

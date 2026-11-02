@@ -1,3 +1,4 @@
+{if !$lwSuspended}
 {literal}
 <style>
 .lw-server, .lw-server h3, .lw-server p, .lw-server dt, .lw-server dd {
@@ -62,3 +63,5 @@
         {/if}
     </div>
 </section>
+
+{/if}

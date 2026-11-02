@@ -24,7 +24,7 @@ check(liquidweb_displayValue('type', 'SS.VPS') === 'VPS', 'Translate the observe
 check(liquidweb_displayValue('status', 'Active') === 'Active', 'Translate the observed resource status');
 check(liquidweb_displayValue('power', 'on') === 'On', 'Translate power without claiming service availability');
 check(liquidweb_displayValue('status', 'future-status') === 'future-status', 'Preserve unknown states');
-foreach (['CreateAccount', 'SuspendAccount', 'UnsuspendAccount', 'TerminateAccount', 'ChangePackage', 'ChangePassword', 'Renew'] as $action) {
+foreach (['CreateAccount', 'TerminateAccount', 'ChangePackage', 'ChangePassword', 'Renew'] as $action) {
     check(!function_exists('liquidweb_' . $action), 'Unexpected lifecycle handler');
 }
 check(liquidweb_MetaData()['RequiresServer'] === true, 'A server connection is required');

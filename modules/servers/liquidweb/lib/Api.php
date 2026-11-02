@@ -2,7 +2,7 @@
 /** @author Duplika https://duplika.com/ | @copyright 2026 Duplika | @license MIT */
 namespace Duplika\LiquidWeb;
 
-/** Read-only Liquid Web API client with explicit v3/v2 routing. No legacy Storm dependency. */
+/** Liquid Web API client with explicit v3/v2 routing. No legacy Storm dependency. */
 final class Api
 {
     private $username;
@@ -25,14 +25,34 @@ final class Api
             'asset/details' => 'v3',
             'server/power/status' => 'v3',
             'monitoring/bandwidth/graph' => 'v2',
+            'network/firewall/details' => 'v2',
         ];
         if (!isset($routes[$method])) {
             throw new \InvalidArgumentException('Operation not allowed.');
         }
+        return $this->request($routes[$method], $method, $params);
+    }
+
+    /** The only write endpoint; accepts only supported firewall payloads. */
+    public function updateFirewall(array $params): array
+    {
+        $uid = $params['uniq_id'] ?? '';
+        if (!is_string($uid) || !preg_match('/^[A-HJ-NP-Z0-9]{6}$/D', $uid)) {
+            throw new \InvalidArgumentException('Invalid firewall UID.');
+        }
+        $configuration = Firewall::configuration(['system' => 'liquidweb'] + $params);
+        if (count($params) !== count($configuration) + 1) {
+            throw new \InvalidArgumentException('Unexpected firewall parameters.');
+        }
+        return $this->request('v2', 'network/firewall/update', ['uniq_id' => $uid] + $configuration);
+    }
+
+    private function request(string $version, string $method, array $params): array
+    {
         if (!function_exists('curl_init')) {
             throw new \RuntimeException('The PHP cURL extension is required.');
         }
-        $handle = curl_init('https://api.liquidweb.com/' . $routes[$method] . '/' . $method);
+        $handle = curl_init('https://api.liquidweb.com/' . $version . '/' . $method);
         curl_setopt_array($handle, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => json_encode(['params' => $params], JSON_THROW_ON_ERROR),

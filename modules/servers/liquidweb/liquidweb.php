@@ -1,7 +1,7 @@
 <?php
 /**
- * Liquid Web for WHMCS — 0.1.7-beta.1
- * Read-only information for manually managed servers.
+ * Liquid Web for WHMCS — 0.2.0-beta.1
+ * Server information and optional native firewall suspension.
  *
  * @author Duplika <https://duplika.com/>
  * @copyright 2026 Duplika
@@ -12,6 +12,8 @@ if (!defined('WHMCS')) {
 }
 require_once __DIR__ . '/lib/Api.php';
 require_once __DIR__ . '/lib/Network.php';
+require_once __DIR__ . '/lib/Firewall.php';
+require_once __DIR__ . '/lib/State.php';
 
 function liquidweb_MetaData(): array
 {
@@ -20,7 +22,10 @@ function liquidweb_MetaData(): array
 
 function liquidweb_ConfigOptions(): array
 {
-    return [];
+    return ['Firewall suspension' => [
+        'Type' => 'yesno',
+        'Description' => 'Enable native Suspend/Unsuspend using the Cloud Firewall. Monitoring must be paused manually.',
+    ]];
 }
 
 function liquidweb_TestConnection(array $params): array
@@ -125,12 +130,17 @@ function liquidweb_ClientArea(array $params): array
 {
     // WHMCS dispatches this function after its normal service authorization.
     // There are no independent HTTP handlers or user-controlled remote IDs.
-    $vars = ['lwRows' => [], 'lwError' => '', 'lwPower' => '', 'lwUpdated' => ''];
+    $serviceStatus = \WHMCS\Database\Capsule::table('tblhosting')
+        ->where('id', (int) $params['serviceid'])->where('userid', (int) $params['userid'])->value('domainstatus');
+    if ($serviceStatus === 'Suspended') {
+        return ['templatefile' => 'clientarea', 'vars' => ['lwSuspended' => true]];
+    }
+    $vars = ['lwSuspended' => false, 'lwRows' => [], 'lwError' => '', 'lwPower' => '', 'lwUpdated' => ''];
     try {
         $uid = liquidweb_assetId($params);
         $username = (string) ($params['serverusername'] ?? '');
         $password = (string) ($params['serverpassword'] ?? '');
-        $key = 'en017b1-' . hash('sha256', json_encode([
+        $key = 'en020b1-' . hash('sha256', json_encode([
             (int) $params['userid'], (int) $params['serviceid'], (int) $params['serverid'],
             $uid, $username, hash('sha256', $password),
         ]));
@@ -174,7 +184,7 @@ function liquidweb_ClientArea(array $params): array
     // Read-only request through WHMCS's existing authorized service page.
     // Fetch graphs only when requested, so normal visits keep their original cost.
     if ($vars['lwError'] === '' && ($_GET['lw_network'] ?? '') === '1') {
-        $networkKey = 'en017b1-' . $key;
+        $networkKey = 'en020b1-' . $key;
         $cachedNetwork = $_SESSION['liquidweb_network'][$networkKey] ?? null;
         if (is_array($cachedNetwork) && ($cachedNetwork['expires'] ?? 0) > time()) {
             $vars['lwNetwork'] = $cachedNetwork['network'];
@@ -210,11 +220,47 @@ function liquidweb_AdminServicesTabFields(array $params): array
 {
     try {
         $uid = liquidweb_assetId($params);
-        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Read-only module 0.1.7-beta.1 · By Duplika (duplika.com)'];
+        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Module 0.2.0-beta.1 · By Duplika (duplika.com)'];
     } catch (\Throwable $e) {
         return ['Liquid Web' => htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')];
     }
 }
 
-// Lifecycle commands deliberately absent: WHMCS must not create, suspend,
-// terminate, resize or change credentials on manually managed servers.
+/** Native administrator buttons and WHMCS billing automation share these handlers. */
+function liquidweb_SuspendAccount(array $params): string
+{
+    return liquidweb_firewallCommand($params, true);
+}
+
+function liquidweb_UnsuspendAccount(array $params): string
+{
+    return liquidweb_firewallCommand($params, false);
+}
+
+function liquidweb_firewallCommand(array $params, bool $suspend): string
+{
+    if (!in_array($params['configoption1'] ?? '', ['on', '1', 1, true], true)) {
+        return 'Enable Firewall suspension in this product Module Settings first.';
+    }
+    try {
+        foreach (['serviceid', 'userid', 'pid', 'serverid'] as $key) {
+            if ((int) ($params[$key] ?? 0) < 1) {
+                throw new \RuntimeException('A valid service and assigned server connection are required.');
+            }
+        }
+        $uid = liquidweb_assetId($params);
+        $api = new \Duplika\LiquidWeb\Api((string) ($params['serverusername'] ?? ''), (string) ($params['serverpassword'] ?? ''));
+        \Duplika\LiquidWeb\State::command($params, $uid, $suspend, $api);
+        unset($_SESSION['liquidweb'], $_SESSION['liquidweb_network']);
+        return 'success';
+    } catch (\Throwable $e) {
+        // No raw API payloads or database exception messages reach clients/logs.
+        if ($e instanceof \RuntimeException && !($e instanceof \PDOException)
+            && !($e instanceof \Illuminate\Database\QueryException)) {
+            return $e->getMessage();
+        }
+        return 'Unable to store or read the firewall snapshot. No success was reported. Check database access and retry; do not delete snapshots.';
+    }
+}
+
+// Provisioning, termination, reboot and password changes remain unsupported.
