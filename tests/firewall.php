@@ -1,5 +1,7 @@
 <?php
 // Offline tests: no WHMCS, database, credentials or network access.
+define('WHMCS', true);
+require_once __DIR__ . '/../modules/servers/liquidweb/lib/Text.php';
 require_once __DIR__ . '/../modules/servers/liquidweb/lib/Firewall.php';
 require_once __DIR__ . '/../modules/servers/liquidweb/lib/Notice.php';
 use Duplika\LiquidWeb\Firewall;

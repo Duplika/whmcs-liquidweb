@@ -33,8 +33,8 @@
 }
 </style>
 {/literal}
-<section class="lw-server panel panel-default card" aria-label="Server information">
-    <div class="panel-heading card-header"><h3 class="panel-title">Server information</h3></div>
+<section class="lw-server panel panel-default card" aria-label="{$lwLang.serverInformation|escape:'html'}">
+    <div class="panel-heading card-header"><h3 class="panel-title">{$lwLang.serverInformation|escape:'html'}</h3></div>
     <div class="panel-body card-body">
         {if $lwError}
             <p role="status">{$lwError|escape:'html'}</p>
@@ -44,20 +44,20 @@
                     <dt>{$label|escape:'html'}</dt>
                     <dd>{$value|escape:'html'}</dd>
                 {/foreach}
-                <dt>Power status</dt>
+                <dt>{$lwLang.powerStatus|escape:'html'}</dt>
                 <dd>{$lwPower|escape:'html'}</dd>
             </dl>
-            <p class="text-muted"><small>Last checked: {$lwUpdated|escape:'html'}. Power status may be cached by the provider.</small></p>
-            <section id="lw-network" class="lw-network" aria-label="Network traffic">
-                <h4>Network traffic</h4>
+            <p class="text-muted"><small>{$lwLang.lastChecked|escape:'html'}: {$lwUpdated|escape:'html'}. {$lwLang.powerCached|escape:'html'}</small></p>
+            <section id="lw-network" class="lw-network" aria-label="{$lwLang.networkTraffic|escape:'html'}">
+                <h4>{$lwLang.networkTraffic|escape:'html'}</h4>
                 {if $lwNetwork}
                     <p><small>{$lwNetwork.period|escape:'html'}</small></p>
-                    <img src="{$lwNetwork.image|escape:'html'}" alt="Incoming and outgoing traffic: reported bytes per sample" width="900" height="300">
-                    <p class="text-muted"><small>{$lwNetwork.count|escape:'html'} samples. Reported bytes per sample; not a transfer rate in bytes/s. Last checked: {$lwNetwork.updated|escape:'html'}.</small></p>
+                    <img src="{$lwNetwork.image|escape:'html'}" alt="{$lwLang.networkAlt|escape:'html'}" width="900" height="300">
+                    <p class="text-muted"><small>{$lwNetwork.count|escape:'html'} {$lwLang.samples|escape:'html'}. {$lwLang.networkExplanation|escape:'html'} {$lwLang.lastChecked|escape:'html'}: {$lwNetwork.updated|escape:'html'}.</small></p>
                 {elseif $lwNetworkError}
                     <p role="status">{$lwNetworkError|escape:'html'}</p>
                 {else}
-                    <a class="btn btn-default" href="{$lwNetworkUrl|escape:'html'}">View network traffic</a>
+                    <a class="btn btn-default" href="{$lwNetworkUrl|escape:'html'}">{$lwLang.viewNetwork|escape:'html'}</a>
                 {/if}
             </section>
         {/if}

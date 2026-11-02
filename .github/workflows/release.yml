@@ -23,9 +23,10 @@ jobs:
           find modules tests tools -name '*.php' -print0 | xargs -0 -n1 php -l
           php tests/smoke.php
           php tests/firewall.php
+          php tests/language.php
 
   release:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'Release v0.2.0-beta.2'
+    if: github.event_name == 'push' && github.event.head_commit.message == 'Release v0.2.1-beta.1'
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -37,32 +38,30 @@ jobs:
           persist-credentials: false
       - name: Build minimal installation package
         run: |
-          zip -r liquidweb-whmcs-0.2.0-beta.2.zip README.md LICENSE modules/servers/liquidweb
-          test "$(unzip -Z1 liquidweb-whmcs-0.2.0-beta.2.zip | grep -v '/$' | wc -l)" -eq 10
-          sha256sum liquidweb-whmcs-0.2.0-beta.2.zip > SHA256SUMS.txt
+          zip -r liquidweb-whmcs-0.2.1-beta.1.zip README.md LICENSE modules/servers/liquidweb
+          test "$(unzip -Z1 liquidweb-whmcs-0.2.1-beta.1.zip | grep -v '/$' | wc -l)" -eq 13
+          sha256sum liquidweb-whmcs-0.2.1-beta.1.zip > SHA256SUMS.txt
           cat > release-notes.md <<'NOTES'
-          Native firewall suspension beta by Duplika, under the MIT License.
+          English and Spanish client-area translations by Duplika, under the MIT License.
 
-          - Native WHMCS Suspend/Unsuspend commands, for mapped Liquid Web services, without an enable checkbox.
-          - Uses WHMCS billing automation for overdue suspension and payment reactivation.
-          - Durable original Basic/Disabled firewall snapshot, verified updates and retry handling.
-          - Suspended-service notice with an owner-scoped overdue invoice link, without provider API calls.
+          - Uses the active WHMCS locale and native Lang::trans overrides.
+          - Translates server information, known status labels, network chart text and suspension/payment notices.
+          - Separates session caches by locale to support native language switching.
+          - English fallback for other languages; no new setting, browser detection or provider requests.
 
-          Update the complete module directory and save Module Settings so WHMCS discovers hooks.php. Review WHMCS Automation Settings: lifecycle capabilities are available to all mapped Liquid Web services. Server provisioning stays manual. Monitoring must still be paused/restored manually in Liquid Web.
+          Replace the complete modules/servers/liquidweb directory, including lib/Text.php and both lang catalogs. Clear the WHMCS template cache if older text remains. Existing firewall snapshots and native suspension/reactivation behavior are preserved; do not repeat a completed snapshot import.
 
-          Important: existing manually blocked servers need a known previous configuration imported once with the optional CLI tool, or manual restoration. Pre-existing Advanced firewalls/presets are not adopted. Never delete pending restore snapshots.
+          Download liquidweb-whmcs-0.2.1-beta.1.zip and follow README.md. The ZIP contains only the module, README and LICENSE. SHA256SUMS.txt provides its checksum.
 
-          Download liquidweb-whmcs-0.2.0-beta.2.zip and read the installation, automation and pilot sections of README.md. The install ZIP includes only the module, README and LICENSE; SHA256SUMS.txt provides its checksum.
-
-          PHP syntax and offline tests pass before publication. Native WHMCS, MySQL and payment integration require a controlled live pilot before unattended use.
+          PHP syntax, firewall tests and offline native-locale/translation/switching/escaping tests pass before publication. Verify Spanish and English in your WHMCS theme. Live lifecycle/payment integration still needs the installation-level pilot.
           NOTES
       - name: Publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create v0.2.0-beta.2 \
+          gh release create v0.2.1-beta.1 \
             --target "$GITHUB_SHA" --prerelease \
-            --title 'v0.2.0-beta.2 — Native firewall suspension' \
+            --title 'v0.2.1-beta.1 — Spanish client-area translations' \
             --notes-file release-notes.md \
-            liquidweb-whmcs-0.2.0-beta.2.zip SHA256SUMS.txt
+            liquidweb-whmcs-0.2.1-beta.1.zip SHA256SUMS.txt

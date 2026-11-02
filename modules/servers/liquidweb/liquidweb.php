@@ -1,6 +1,6 @@
 <?php
 /**
- * Liquid Web for WHMCS — 0.2.0-beta.2
+ * Liquid Web for WHMCS — 0.2.1-beta.1
  * Server information and native firewall suspension.
  *
  * @author Duplika <https://duplika.com/>
@@ -10,6 +10,7 @@
 if (!defined('WHMCS')) {
     die('This file cannot be accessed directly');
 }
+require_once __DIR__ . '/lib/Text.php';
 require_once __DIR__ . '/lib/Api.php';
 require_once __DIR__ . '/lib/Network.php';
 require_once __DIR__ . '/lib/Firewall.php';
@@ -82,7 +83,7 @@ function liquidweb_assetId(array $params): string
 /** Explicitly select public fields. Prices, usernames and credentials never reach Smarty. */
 function liquidweb_publicDetails(array $asset): array
 {
-    $fields = ['type' => 'Type', 'status' => 'Resource status'];
+    $fields = ['type' => \Duplika\LiquidWeb\Text::t('type'), 'status' => \Duplika\LiquidWeb\Text::t('resourceStatus')];
     $result = [];
     foreach ($fields as $key => $label) {
         if (isset($asset[$key]) && is_scalar($asset[$key]) && (string) $asset[$key] !== '') {
@@ -90,7 +91,7 @@ function liquidweb_publicDetails(array $asset): array
         }
     }
     if (is_string($asset['distro'] ?? null) && trim($asset['distro']) !== '') {
-        $result['Operating system'] = liquidweb_displayValue('distro', trim($asset['distro']));
+        $result[\Duplika\LiquidWeb\Text::t('operatingSystem')] = liquidweb_displayValue('distro', trim($asset['distro']));
     }
     $region = $asset['region'] ?? null;
     if (is_array($region)) {
@@ -98,14 +99,14 @@ function liquidweb_publicDetails(array $asset): array
         foreach (['city', 'country'] as $field) {
             if (is_string($region[$field] ?? null) && trim($region[$field]) !== '') {
                 $value = trim($region[$field]);
-                $location[] = $field === 'country' && $value === 'US' ? 'United States' : $value;
+                $location[] = $field === 'country' && $value === 'US' ? \Duplika\LiquidWeb\Text::t('unitedStates') : $value;
             }
         }
         if ($location !== []) {
-            $result['Location'] = implode(', ', $location);
+            $result[\Duplika\LiquidWeb\Text::t('location')] = implode(', ', $location);
         }
         if (is_string($region['name'] ?? null) && trim($region['name']) !== '') {
-            $result['Region'] = trim($region['name']);
+            $result[\Duplika\LiquidWeb\Text::t('region')] = trim($region['name']);
         }
     }
     return $result;
@@ -114,13 +115,13 @@ function liquidweb_publicDetails(array $asset): array
 /** Translate known codes; preserve unknown values without guessing their meaning. */
 function liquidweb_displayValue(string $field, string $value): string
 {
+    if ($field === 'distro' && $value === 'alma') { return 'AlmaLinux'; }
     $labels = [
-        'type' => ['SS.VPS' => 'VPS', 'Cloud.VPS' => 'VPS', 'Cloud.Metal' => 'Cloud dedicated server', 'Bare.Metal' => 'Dedicated server'],
-        'status' => ['Active' => 'Active', 'New' => 'New', 'Disabled' => 'Disabled', 'Terminated' => 'Terminated', 'Pending-Activation' => 'Pending activation', 'Pending-Termination' => 'Pending termination'],
-        'distro' => ['alma' => 'AlmaLinux'],
-        'power' => ['on' => 'On', 'off' => 'Off'],
+        'type' => ['SS.VPS' => 'vps', 'Cloud.VPS' => 'vps', 'Cloud.Metal' => 'cloudDedicated', 'Bare.Metal' => 'dedicated'],
+        'status' => ['Active' => 'active', 'New' => 'new', 'Disabled' => 'disabled', 'Terminated' => 'terminated', 'Pending-Activation' => 'pendingActivation', 'Pending-Termination' => 'pendingTermination'],
+        'power' => ['on' => 'on', 'off' => 'off'],
     ];
-    return $labels[$field][$value] ?? $value;
+    return isset($labels[$field][$value]) ? \Duplika\LiquidWeb\Text::t($labels[$field][$value]) : $value;
 }
 
 function liquidweb_ClientArea(array $params): array
@@ -137,9 +138,9 @@ function liquidweb_ClientArea(array $params): array
         $uid = liquidweb_assetId($params);
         $username = (string) ($params['serverusername'] ?? '');
         $password = (string) ($params['serverpassword'] ?? '');
-        $key = 'en020b2-' . hash('sha256', json_encode([
+        $key = 'i18n021b1-' . hash('sha256', json_encode([
             (int) $params['userid'], (int) $params['serviceid'], (int) $params['serverid'],
-            $uid, $username, hash('sha256', $password),
+            $uid, $username, hash('sha256', $password), \Duplika\LiquidWeb\Text::locale(),
         ]));
         $cached = $_SESSION['liquidweb'][$key] ?? null;
         if (is_array($cached) && ($cached['expires'] ?? 0) > time()) {
@@ -154,9 +155,9 @@ function liquidweb_ClientArea(array $params): array
             try {
                 $power = $api->call('server/power/status', ['uniq_id' => $uid]);
                 $vars['lwPower'] = is_scalar($power['powerStatus'] ?? null)
-                    ? liquidweb_displayValue('power', (string) $power['powerStatus']) : 'Unavailable';
+                    ? liquidweb_displayValue('power', (string) $power['powerStatus']) : \Duplika\LiquidWeb\Text::t('unavailable');
             } catch (\Throwable $e) {
-                $vars['lwPower'] = 'Unavailable';
+                $vars['lwPower'] = \Duplika\LiquidWeb\Text::t('unavailable');
             }
             $vars['lwUpdated'] = gmdate('Y-m-d H:i:s') . ' UTC';
             // Short session-local cache; no tables, cron or public cache files.
@@ -171,7 +172,7 @@ function liquidweb_ClientArea(array $params): array
         }
     } catch (\Throwable $e) {
         // Safe client message: configuration and upstream errors remain private.
-        $vars['lwError'] = 'Unable to retrieve server information. Please contact support if the problem persists.';
+        $vars['lwError'] = \Duplika\LiquidWeb\Text::t('informationError');
     }
     $vars['lwNetwork'] = [];
     $vars['lwNetworkError'] = '';
@@ -181,7 +182,7 @@ function liquidweb_ClientArea(array $params): array
     // Read-only request through WHMCS's existing authorized service page.
     // Fetch graphs only when requested, so normal visits keep their original cost.
     if ($vars['lwError'] === '' && ($_GET['lw_network'] ?? '') === '1') {
-        $networkKey = 'en020b2-' . $key;
+        $networkKey = 'i18n021b1-' . $key;
         $cachedNetwork = $_SESSION['liquidweb_network'][$networkKey] ?? null;
         if (is_array($cachedNetwork) && ($cachedNetwork['expires'] ?? 0) > time()) {
             $vars['lwNetwork'] = $cachedNetwork['network'];
@@ -195,7 +196,7 @@ function liquidweb_ClientArea(array $params): array
                 $vars['lwNetwork'] = \Duplika\LiquidWeb\Network::render($response);
                 $vars['lwNetwork']['updated'] = gmdate('Y-m-d H:i:s') . ' UTC';
             } catch (\Throwable $e) {
-                $vars['lwNetworkError'] = 'Network history is currently unavailable.';
+                $vars['lwNetworkError'] = \Duplika\LiquidWeb\Text::t('networkError');
             }
             if (session_status() === PHP_SESSION_ACTIVE) {
                 foreach (($_SESSION['liquidweb_network'] ?? []) as $oldKey => $entry) {
@@ -210,6 +211,7 @@ function liquidweb_ClientArea(array $params): array
             }
         }
     }
+    $vars['lwLang'] = \Duplika\LiquidWeb\Text::all();
     return ['templatefile' => 'clientarea', 'vars' => $vars];
 }
 
@@ -217,7 +219,7 @@ function liquidweb_AdminServicesTabFields(array $params): array
 {
     try {
         $uid = liquidweb_assetId($params);
-        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Module 0.2.0-beta.2 · By Duplika (duplika.com)'];
+        return ['Liquid Web' => 'UID ' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . ' · Module 0.2.1-beta.1 · By Duplika (duplika.com)'];
     } catch (\Throwable $e) {
         return ['Liquid Web' => htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8')];
     }

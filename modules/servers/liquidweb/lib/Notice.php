@@ -43,13 +43,12 @@ final class Notice
 
     public static function render(bool $overdue, bool $blocked, int $invoice): string
     {
-        $title = $overdue ? 'Service suspended for non-payment' : 'Service suspended';
-        $text = $blocked ? 'Server access was blocked through the Cloud Firewall when this service was suspended. ' : '';
-        $text .= $overdue
-            ? 'Pay the outstanding service invoices to allow reactivation. If you have already paid and access remains blocked, please contact support.'
-            : 'Please contact support for assistance with reactivation.';
+        $textFor = fn($key) => htmlspecialchars(Text::t($key), ENT_QUOTES, 'UTF-8');
+        $title = $textFor($overdue ? 'suspendedPayment' : 'suspended');
+        $text = $blocked ? $textFor('firewallBlocked') . ' ' : '';
+        $text .= $textFor($overdue ? 'payToReactivate' : 'contactToReactivate');
         $button = $overdue && $invoice > 0
-            ? '<p><a class="btn btn-primary" href="viewinvoice.php?id=' . $invoice . '">View outstanding invoice</a></p>' : '';
+            ? '<p><a class="btn btn-primary" href="viewinvoice.php?id=' . $invoice . '">' . $textFor('viewInvoice') . '</a></p>' : '';
         return '<section class="alert alert-warning lw-suspension" role="status" style="text-align:left">'
             . '<h3>' . $title . '</h3><p>' . $text . '</p>' . $button . '</section>';
     }

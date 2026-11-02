@@ -61,6 +61,7 @@ final class Network
 
     public static function render(array $response): array
     {
+        $text = fn($key) => htmlspecialchars(Text::t($key), ENT_QUOTES | ENT_XML1, 'UTF-8');
         $samples = self::samples($response);
         $first = $samples[0]['time'];
         $last = $samples[count($samples) - 1]['time'];
@@ -84,11 +85,11 @@ final class Network
         }
         $ceiling = max(1.0, $maximum * 1.1);
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" role="img">'
-            . '<title>Incoming and outgoing traffic</title>'
-            . '<desc>Reported bytes per sample. The horizontal axis uses UTC. Values are not a per-second rate.</desc>'
+            . '<title>' . $text('networkTitle') . '</title>'
+            . '<desc>' . $text('networkDescription') . '</desc>'
             . '<rect width="900" height="300" fill="#ffffff"/>'
             . '<g font-family="system-ui,sans-serif" font-size="12" fill="#344054">';
-        $svg .= '<text x="64" y="18">' . $unit . ' / sample</text>';
+        $svg .= '<text x="64" y="18">' . $unit . ' / ' . $text('perSample') . '</text>';
         for ($tick = 0; $tick <= 4; $tick++) {
             $y = 230 - $tick * 50;
             $svg .= '<path d="M64 ' . $y . 'H876" stroke="#e4e7ec"/>'
@@ -118,8 +119,8 @@ final class Network
             }
             $svg .= '<path d="' . $path . '" fill="none" stroke="' . $color . '" stroke-width="2"/>';
         }
-        $svg .= '<text x="64" y="284" fill="#1675d1">Incoming</text>'
-            . '<text x="170" y="284" fill="#00875a">Outgoing</text></g></svg>';
+        $svg .= '<text x="64" y="284" fill="#1675d1">' . $text('incoming') . '</text>'
+            . '<text x="170" y="284" fill="#00875a">' . $text('outgoing') . '</text></g></svg>';
         return [
             'image' => 'data:image/svg+xml;base64,' . base64_encode($svg),
             'period' => gmdate('d/m/Y H:i', $first) . ' – ' . gmdate('d/m/Y H:i', $last) . ' UTC',

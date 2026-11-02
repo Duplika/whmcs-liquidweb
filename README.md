@@ -2,7 +2,7 @@
 
 A lightweight, server module by [Duplika](https://duplika.com/) for displaying Liquid Web server information in the WHMCS client area.
 
-**0.2.0-beta.2 · English · MIT License**
+**0.2.1-beta.1 · English / Spanish client area · MIT License**
 
 For providers who create and manage servers manually. This independent project is not an official Liquid Web or WHMCS integration.
 
@@ -32,7 +32,7 @@ CPU utilization, load average, RAM/disk utilization, allocated-capacity summarie
 - Outbound HTTPS to `api.liquidweb.com`, valid CA certificates, and Liquid Web API credentials.
 - An active PHP session for caching. Your Content Security Policy must allow `data:` images for the SVG chart.
 
-Basic details and network history were reported working in one WHMCS/Nexus pilot with an `SS.VPS` server. This beta is not certified for every WHMCS version, theme, account, or Liquid Web product. Test the English package and optional metadata on a controlled service before wider use.
+Basic details and network history were reported working in one WHMCS/Nexus pilot with an `SS.VPS` server. This beta is not certified for every WHMCS version, theme, account, or Liquid Web product. Test both supported client-area languages and optional metadata on a controlled service before wider use.
 
 ## Installation
 
@@ -89,7 +89,7 @@ Then reconcile the service using the native Suspend command if necessary. For no
 
 ### Client suspension notice
 
-A native `ClientAreaProductDetailsOutput` hook displays an English notice on suspended Liquid Web services without Liquid Web API requests. It identifies non-payment only from WHMCS's exact billing suspension reason. A Cloud Firewall explanation appears only with a confirmed module snapshot for the current assignment. The payment button links only to an unpaid, due Hosting invoice belonging to that service's owner. If several invoices remain unpaid, WHMCS's normal reactivation rules still apply. No arbitrary suspension reason, saved firewall data or credentials are exposed.
+A native `ClientAreaProductDetailsOutput` hook displays a localized notice on suspended Liquid Web services without Liquid Web API requests. It identifies non-payment only from WHMCS's exact billing suspension reason. A Cloud Firewall explanation appears only with a confirmed module snapshot for the current assignment. The payment button links only to an unpaid, due Hosting invoice belonging to that service's owner. If several invoices remain unpaid, WHMCS's normal reactivation rules still apply. No arbitrary suspension reason, saved firewall data or credentials are exposed.
 
 The module skips provider metadata and graphs while the service is suspended. Notices depend on the theme rendering WHMCS's native product-details hook; test this on your theme, particularly for suspended services.
 
@@ -108,6 +108,21 @@ Use a controlled service before relying on unattended billing automation:
 - Re-enable only the monitoring that was enabled before suspension.
 
 The direct API block operation was verified on one pilot VPS. The new native WHMCS lifecycle, hooks, MySQL persistence and end-to-end payment flow still need this installation-level pilot.
+
+## Client-area languages
+
+The module follows WHMCS's active language through the native `Lang::trans('locale')` value. Spanish locales use the bundled Spanish catalog; English and unsupported locales fall back to English. Use WHMCS's existing language selector and language preferences; there is no module selector, cookie, browser-language detection or extra provider request.
+
+Translations cover server field labels, known resource/power states, the United States country name, network buttons and errors, chart legends/accessibility text, and suspension/payment notices. Provider-specific identifiers, unknown product/status codes, operating system names and region labels remain unchanged. The administrator diagnostics and README remain in English. Dates and chart times remain explicitly UTC.
+
+As this is a provisioning module, the module-owned `lang/english.php` and `lang/spanish.php` catalogs are loaded by a small adapter using the native active locale. Native WHMCS overrides take priority through `Lang::trans('liquidweb.KEY')`. To customize a phrase, append the relevant key to your existing `lang/overrides/spanish.php`, without replacing that file, for example:
+
+```php
+$_LANG['liquidweb']['serverInformation'] = 'Información del servidor';
+$_LANG['liquidweb']['viewNetwork'] = 'Ver tráfico de red';
+```
+
+Supported keys are listed in the module catalogs. No core language files or theme files are changed by installing the module. Session cache keys include the active locale so a language switch cannot reuse a graph or status labels rendered for another language. Overrides may take up to the normal cache lifetime to appear in cached data.
 
 ## API compatibility
 
@@ -152,7 +167,7 @@ Before rolling back to an information-only version, restore all firewalls blocke
 
 ## Validation and issue reports
 
-GitHub Actions checks PHP syntax and runs offline tests before publishing the install ZIP. These checks do not call Liquid Web or run WHMCS. Pilot feedback does not replace testing in your installation. To run the offline checks locally: `php tests/smoke.php` and `php tests/firewall.php`. The firewall tests cover retry safety, preservation/restoration of Basic and Disabled configurations, rejected conflicts, persistence failures, timeouts and billing notices. They do not validate MySQL or WHMCS integration.
+GitHub Actions checks PHP syntax and runs offline tests before publishing the install ZIP. These checks do not call Liquid Web or run WHMCS. Pilot feedback does not replace testing in your installation. To run the offline checks locally: `php tests/smoke.php`, `php tests/firewall.php` and `php tests/language.php`. The firewall tests cover retry safety, preservation/restoration of Basic and Disabled configurations, rejected conflicts, persistence failures, timeouts and billing notices. They do not validate MySQL or WHMCS integration.
 
 Report issues with the module, WHMCS and PHP versions, theme, server type and error shown. Never include API tokens, passwords, full account responses or customer-identifying details.
 
